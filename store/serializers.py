@@ -2,25 +2,29 @@ from decimal import Decimal
 from django.db import transaction
 from rest_framework import serializers
 from .signals import order_created
-from .models import Product, Collection, Review, Cart, CartItem, Customer, Order, OrderItem
+from .models import Product, Collection, Review, Cart, CartItem, Customer, Order, OrderItem, SubCollection
 
 class CollectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Collection
-        fields = ['id', 'title', 'products_count']
+        fields = ['id', 'title', 'products_count', 'subcollections_count']
 
     products_count = serializers.IntegerField(read_only=True)
+    subcollections_count = serializers.IntegerField(read_only=True)
     
+
+class SubCollectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubCollection
+        fields = ['id', 'title', 'collection', 'products_count']
+
+    products_count = serializers.IntegerField(read_only=True)
+
 
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
-        fields = ['id', 'title', 'description', 'slug', 'inventory', 'unit_price', 'price_with_tax', 'collection']
-    
-    price_with_tax = serializers.SerializerMethodField(method_name='calculate_tax')
-
-    def calculate_tax(self, product:Product):
-        return product.unit_price * Decimal(1.1)
+        fields = ['id', 'title', 'description', 'slug', 'inventory', 'unit_price', 'subcollection']
     
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -152,7 +156,7 @@ class CreateOrderSerializer(serializers.Serializer):
                     .filter(cart_id=cart_id)
             order_items = [
                 OrderItem(
-                    order=order,
+                    order=self.instance,
                     product=item.product,
                     unit_price=item.product.unit_price,
                     quantity=item.product.quantity
@@ -162,6 +166,6 @@ class CreateOrderSerializer(serializers.Serializer):
             
             Cart.objects.filter(pk=cart_id).delete()
 
-            order_created.send_robust(self.__class__, order=order)
+            order_created.send_robust(self.__class__, order=self.instance)
 
-            return order
+            return self.instance

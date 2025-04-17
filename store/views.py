@@ -10,8 +10,8 @@ from rest_framework.viewsets import ModelViewSet, GenericViewSet
 from rest_framework.response import Response
 from rest_framework import status
 from .filters import productFilter
-from .models import Product, Collection, OrderItem, Review, Cart, CartItem, Customer, Order
-from .serializers import ProductSerializer, CollectionSerializer, ReviewSerializer, CartSerializer, CartItemSerializer, AddCartItemSerializer, UpdateCartItemSerializer, CustomerSerializer, OrderSerializer, CreateOrderSerializer, UpdateOrderSerialzer
+from .models import Product, Collection, OrderItem, Review, Cart, CartItem, Customer, Order, SubCollection
+from .serializers import ProductSerializer, CollectionSerializer, ReviewSerializer, CartSerializer, CartItemSerializer, AddCartItemSerializer, UpdateCartItemSerializer, CustomerSerializer, OrderSerializer, CreateOrderSerializer, UpdateOrderSerialzer, SubCollectionSerializer
 from .permissions import IsAdminOrReadOnly, FullDjangoModelPermissions, ViewCustomerHistoryPermission
 from .pagination import DefaultPagination
 
@@ -39,18 +39,30 @@ class ProductViewSet(ModelViewSet):
 
 class CollectionViewSet(ModelViewSet):
     queryset = Collection.objects.annotate(
-            products_count=Count('products')).all()
+            subcollections_count=Count('subcollections')).all()
     serializer_class = CollectionSerializer
     permission_classes = [IsAdminOrReadOnly]
-
-
+    
     def destroy(self, request, *args, **kwargs):
         collection = get_object_or_404(Collection, pk=self.kwargs['pk'])
-        if collection.products.count() > 0:
-            return Response({'error':'Collection can not be deleted because it includes one or more products'},
+        if collection.subcollections.count() > 0:
+            return Response({'error':'Collection cannot be deleted because it includes one or more subcollections'},
                              status=status.HTTP_405_METHOD_NOT_ALLOWED)
         return super().destroy(request, *args, **kwargs)
-   
+    
+
+class SubCollectionViewSet(ModelViewSet):
+    queryset = SubCollection.objects.annotate(
+            products_count=Count('products')).all()
+    serializer_class = SubCollectionSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+    def destroy(self, request, *args, **kwargs):
+        subcollection = get_object_or_404(SubCollection, pk=self.kwargs['pk'])
+        if subcollection.products.count() > 0:
+            return Response({'error':'SubCollection cannot be deleted because it includes one or more products'},
+                             status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        return super().destroy(request, *args, **kwargs)
    
 class ReviewViewSet(ModelViewSet):
     serializer_class = ReviewSerializer
